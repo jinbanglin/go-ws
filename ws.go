@@ -21,6 +21,20 @@ type WS struct {
   clock *clock.Clock
 }
 
+var GWS *WS
+
+func SetupWS() {
+  GWS = &WS{
+    lock:       new(sync.Mutex),
+    Clients:    new(sync.Map),
+    register:   make(chan *Client),
+    unregister: make(chan *Client),
+    broadcast:  make(chan *broadcastData),
+    clock:      clock.NewClock(),
+  }
+  go GWS.Run()
+}
+
 type broadcastData struct {
   roomId string
   userId string
