@@ -65,6 +65,7 @@ func (c *Client) readLoop() {
       }
       break
     }
+
     c.conn.SetReadDeadline(time.Now().Add(PongWait))
 
     c.ctx = context.WithValue(c.ctx, log.GContextKey, uuid.New().String())
