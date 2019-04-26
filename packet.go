@@ -11,10 +11,10 @@ import (
 var PacketHeaderLength = 16
 
 type PacketHeader struct {
-  ServerType uin16  // gateway for find server
-  ServerID   uin16  // gateway for find server
-  PacketLen  uin16  // packet length
-  MsgID      uin16  // message id,bind with business logic
+  ServerType uint16  // gateway for find server
+  ServerID   uint16  // gateway for find server
+  PacketLen  uint16  // packet length
+  MsgID      uint16  // message id,bind with business logic
   Seq        uint64 // packet sequence
 }
 
