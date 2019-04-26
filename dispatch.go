@@ -58,9 +58,9 @@ func getEndpoint(msgID uint16) (endpoint *SchedulerEndpoint, err error) {
 func (d *Dispatch) Invoking(
   ctx context.Context,
   client *Client,
-  packet []byte) (b []byte, err error) {
+  packet []byte, seq uint64) (b []byte, err error) {
 
-  header, payload, packetLength := parsePacket(packet)
+  header, payload, packetLength := ParseRemotePacket(packet)
 
   if !verifyPacket(len(packet), packetLength) {
     log.Error("verifyPacket |err=invalid packet")
@@ -94,12 +94,12 @@ func (d *Dispatch) Invoking(
     return nil, err
   }
 
-  b = pack(header, body)
+  b = PackLocalPacket(header, body,seq)
 
   return
 }
 
-const wsHeartbeatMsgID MessageIDType = 10000
+const HeartbeatMsgID MessageIDType = 10000
 
 func Heartbeat(ctx context.Context, client *Client, req proto.Message) (rsp proto.Message, err error) {
   rsp = &ws_proto.PongRsp{

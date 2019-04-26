@@ -33,7 +33,7 @@ func SetupWS() {
     broadcast:  make(chan *broadcastData),
     clock:      clock.NewClock(),
   }
-  RegisterEndpoint(wsHeartbeatMsgID, &ws_proto.PongReq{}, Heartbeat)
+  RegisterEndpoint(HeartbeatMsgID, &ws_proto.PongReq{}, Heartbeat)
   go GWS.Run()
 }
 

@@ -7,8 +7,8 @@ import (
   "github.com/alex023/clock"
   "github.com/jinbanglin/log"
   "time"
-  "github.com/google/uuid"
   "github.com/spf13/viper"
+  "strconv"
 )
 
 type state = int32
@@ -68,9 +68,11 @@ func (c *Client) readLoop() {
 
     c.conn.SetReadDeadline(time.Now().Add(PongWait))
 
-    c.ctx = context.WithValue(c.ctx, log.GContextKey, uuid.New().String())
+    seq := MakeSeq()
 
-    b, err := gDispatch.Invoking(c.ctx, c, packet)
+    c.ctx = context.WithValue(c.ctx, log.GContextKey, strconv.FormatUint(seq, 10))
+
+    b, err := gDispatch.Invoking(c.ctx, c, packet, seq)
     if err != nil {
       log.Error2(c.ctx, err)
       continue
