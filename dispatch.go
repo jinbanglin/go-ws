@@ -9,8 +9,11 @@ import (
   "fmt"
   "github.com/jinbanglin/log"
   "github.com/jinbanglin/helper"
+  "github.com/jinbanglin/go-ws/ws_proto"
+  "github.com/jinbanglin/micro/message"
 )
 
+type MessageIDType = uint16
 type Endpoint func(ctx context.Context, client *Client, req proto.Message) (rsp proto.Message, err error)
 
 type Dispatch struct {
@@ -25,7 +28,7 @@ type SchedulerEndpoint struct {
 
 var gDispatch *Dispatch
 
-func RegisterEndpoint(msgID uint16, endpoint Endpoint, req proto.Message) {
+func RegisterEndpoint(msgID uint16, req proto.Message, endpoint Endpoint) {
 
   if gDispatch == nil {
     gDispatch = &Dispatch{lock: new(sync.RWMutex)}
@@ -93,5 +96,16 @@ func (d *Dispatch) Invoking(
 
   b = pack(header, body)
 
+  return
+}
+
+const wsHeartbeatMsgID MessageIDType = 10000
+
+func Heartbeat(ctx context.Context, client *Client, req proto.Message) (rsp proto.Message, err error) {
+  rsp = &ws_proto.PongRsp{
+    Appid:   client.appID,
+    UserId:  client.userID,
+    RoomId:  client.roomID,
+    Message: &msg.Message{Code: 200, Msg: ""}}
   return
 }
