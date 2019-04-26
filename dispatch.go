@@ -31,7 +31,7 @@ var gDispatch *Dispatch
 func RegisterEndpoint(msgID uint16, req proto.Message, endpoint Endpoint) {
 
   if gDispatch == nil {
-    gDispatch = &Dispatch{lock: new(sync.RWMutex)}
+    gDispatch = &Dispatch{lock: new(sync.RWMutex), dispatch: make(map[uint16]*SchedulerEndpoint)}
   }
 
   gDispatch.lock.Lock()
@@ -94,7 +94,7 @@ func (d *Dispatch) Invoking(
     return nil, err
   }
 
-  b = PackLocalPacket(header, body,seq)
+  b = PackLocalPacket(header, body, seq)
 
   return
 }
