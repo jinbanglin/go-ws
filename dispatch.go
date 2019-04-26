@@ -8,6 +8,7 @@ import (
   "errors"
   "fmt"
   "github.com/jinbanglin/log"
+  "github.com/jinbanglin/helper"
 )
 
 type Endpoint func(ctx context.Context, client *Client, req proto.Message) (rsp proto.Message, err error)
@@ -51,7 +52,10 @@ func getEndpoint(msgID uint16) (endpoint *SchedulerEndpoint, err error) {
   return
 }
 
-func (d *Dispatch) Invoking(ctx context.Context, client *Client, packet []byte) (b []byte, err error) {
+func (d *Dispatch) Invoking(
+  ctx context.Context,
+  client *Client,
+  packet []byte) (b []byte, err error) {
 
   header, payload, packetLength := parsePacket(packet)
 
@@ -67,17 +71,19 @@ func (d *Dispatch) Invoking(ctx context.Context, client *Client, packet []byte) 
   }
 
   req := reflect.New(endpoint.RequestType).Interface().(proto.Message)
-  err = proto.Unmarshal(payload, req)
+  err = proto.Unmarshal(payload.Bytes(), req)
   if err != nil {
     log.Error(err)
     return nil, err
   }
+  log.Debugf("FROM |user_id=%s", client.userID, helper.Marshal2String(req))
 
   rsp, err := endpoint.handler(ctx, client, req)
   if err != nil {
     log.Error(err)
     return nil, err
   }
+  log.Debugf("TO |user_id=%s", client.userID, helper.Marshal2String(rsp))
 
   body, err := proto.Marshal(rsp)
   if err != nil {
