@@ -23,7 +23,7 @@ type Dispatch struct {
 
 type SchedulerEndpoint struct {
   RequestType reflect.Type
-  handler     Endpoint
+  endpoint    Endpoint
 }
 
 var gDispatch *Dispatch
@@ -42,7 +42,7 @@ func RegisterEndpoint(msgID uint16, req proto.Message, endpoint Endpoint) {
   }
   gDispatch.dispatch[msgID] = &SchedulerEndpoint{
     RequestType: reflect.TypeOf(req).Elem(),
-    handler:     endpoint,
+    endpoint:    endpoint,
   }
 }
 
@@ -74,19 +74,20 @@ func (d *Dispatch) Invoking(
   }
 
   req := reflect.New(endpoint.RequestType).Interface().(proto.Message)
+
   err = proto.Unmarshal(payload.Bytes(), req)
   if err != nil {
     log.Error(err)
     return nil, err
   }
-  log.Debugf("FROM |user_id=%s", client.userID, helper.Marshal2String(req))
+  log.Debugf2(ctx, "FROM |user_id=%s |data=%v", client.userID, helper.Marshal2String(req))
 
-  rsp, err := endpoint.handler(ctx, client, req)
+  rsp, err := endpoint.endpoint(ctx, client, req)
   if err != nil {
     log.Error(err)
     return nil, err
   }
-  log.Debugf("TO |user_id=%s", client.userID, helper.Marshal2String(rsp))
+  log.Debugf2(ctx, "TO |user_id=%s |data=%v", client.userID, helper.Marshal2String(rsp))
 
   body, err := proto.Marshal(rsp)
   if err != nil {
@@ -95,7 +96,7 @@ func (d *Dispatch) Invoking(
   }
 
   b = PackLocalPacket(header, body, seq)
-
+  packetHeaderRelease(header)
   return
 }
 

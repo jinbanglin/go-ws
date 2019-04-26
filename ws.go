@@ -33,13 +33,13 @@ func SetupWS() {
     broadcast:  make(chan *broadcastData),
     clock:      clock.NewClock(),
   }
-  RegisterEndpoint(HeartbeatMsgID, &ws_proto.PongReq{}, Heartbeat)
+  RegisterEndpoint(HeartbeatMsgID, &ws_proto.PingReq{}, Heartbeat)
   go GWS.Run()
 }
 
 type broadcastData struct {
-  roomId string
-  userId string
+  roomID string
+  userID string
   data   []byte
 }
 
@@ -52,7 +52,7 @@ var gUpGrader = websocket.Upgrader{
 }
 
 func Handshake(ws *WS, userId string, w http.ResponseWriter, r *http.Request) {
-  log.Debugf("HANDSHAKE |user_id=%", userId)
+  log.Debugf("HANDSHAKE |user_id=%s", userId)
   conn, err := gUpGrader.Upgrade(w, r, nil)
   if err != nil {
     log.Error(err)
@@ -74,6 +74,8 @@ func Handshake(ws *WS, userId string, w http.ResponseWriter, r *http.Request) {
     }
     client.setState(_NORMAL_STATE)
     client.ws.register <- client
+    go client.readLoop()
+    go client.writeLoop()
   }
 }
 
@@ -98,10 +100,10 @@ func (w *WS) Run() {
         w.Clients.Delete(client.userID)
       }
     case packet := <-w.broadcast:
-      if !strings.EqualFold(packet.roomId, "") {
+      if !strings.EqualFold(packet.roomID, "") {
         w.Clients.Range(func(key, value interface{}) bool {
           client := value.(*Client)
-          if client.roomID == packet.roomId {
+          if client.roomID == packet.roomID {
             if cnn, ok := w.Clients.Load(client.userID); ok {
               cnn.(*Client).send <- packet.data
             }
@@ -109,7 +111,7 @@ func (w *WS) Run() {
           return true
         })
       } else {
-        if cnn, ok := w.Clients.Load(packet.userId); ok {
+        if cnn, ok := w.Clients.Load(packet.userID); ok {
           cnn.(*Client).send <- packet.data
         }
       }

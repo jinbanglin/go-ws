@@ -78,8 +78,8 @@ func (c *Client) readLoop() {
       continue
     }
     Broadcast(&broadcastData{
-      roomId: c.roomID,
-      userId: c.userID,
+      roomID: c.roomID,
+      userID: c.userID,
       data:   b,
     }, c.ws)
   }

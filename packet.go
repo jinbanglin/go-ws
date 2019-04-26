@@ -11,10 +11,10 @@ import (
 var PacketHeaderLength = 16
 
 type PacketHeader struct {
-  ServerType uint16  // gateway for find server
-  ServerID   uint16  // gateway for find server
-  PacketLen  uint16  // packet length
-  MsgID      uint16  // message id,bind with business logic
+  ServerType uint16 // gateway for find server
+  ServerID   uint16 // gateway for find server
+  PacketLen  uint16 // packet length
+  MsgID      uint16 // message id,bind with business logic
   Seq        uint64 // packet sequence
 }
 
@@ -38,14 +38,10 @@ func (p *PacketHeader) GetPacketLength() uint16 {
   return p.PacketLen
 }
 
-var packetPool *sync.Pool
-
-func packetHeaderGet() *PacketHeader {
-  v := packetPool.Get()
-  if v != nil {
-    return v.(*PacketHeader)
-  }
-  return new(PacketHeader)
+var packetPool = &sync.Pool{
+  New: func() interface{} {
+    return &PacketHeader{}
+  },
 }
 
 func packetHeaderRelease(header *PacketHeader) {
@@ -65,6 +61,8 @@ func PackLocalPacket(header *PacketHeader, payload []byte, seq uint64) (b []byte
   binary.BigEndian.PutUint16(b[4:6], packetLength)
   binary.BigEndian.PutUint16(b[6:8], header.MsgID)
   binary.BigEndian.PutUint64(b[8:16], seq)
+
+  copy(b[PacketHeaderLength:packetLength], payload)
   return
 }
 
@@ -79,7 +77,7 @@ func ParseRemotePacket(packet []byte) (
     return
   }
 
-  header = packetHeaderGet()
+  header = packetPool.Get().(*PacketHeader)
   header.ServerType = binary.BigEndian.Uint16(packet[0:2])
   header.ServerID = binary.BigEndian.Uint16(packet[2:4])
   header.PacketLen = binary.BigEndian.Uint16(packet[4:6])
@@ -88,6 +86,7 @@ func ParseRemotePacket(packet []byte) (
 
   payload = bufferpool.Get()
   payload.Write(packet[PacketHeaderLength:int(header.PacketLen)])
+
   packetLength = int(header.PacketLen)
 
   return
