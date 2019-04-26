@@ -57,7 +57,7 @@ func packetHeaderRelease(header *PacketHeader) {
   packetPool.Put(header)
 }
 
-func SerializePacket(header *PacketHeader, payload []byte) (b []byte) {
+func pack(header *PacketHeader, payload []byte) (b []byte) {
   packetLength := uint16(len(payload)) + uint16(PacketHeaderLength)
   b = make([]byte, packetLength)
   binary.BigEndian.PutUint16(b[0:2], header.ServerType)
@@ -68,10 +68,10 @@ func SerializePacket(header *PacketHeader, payload []byte) (b []byte) {
   return
 }
 
-func parsePacket(packet []byte, packetLen int) (
+func parsePacket(packet []byte) (
   header *PacketHeader, payload *bufferpool.ByteBuffer, packetLength int) {
 
-  if packetLen < PacketHeaderLength {
+  if len(packet) < PacketHeaderLength {
     return
   }
 
@@ -87,4 +87,8 @@ func parsePacket(packet []byte, packetLen int) (
   packetLength = int(header.PacketLen)
 
   return
+}
+
+func verifyPacket(packetLength, headerPacketLength int) bool {
+  return packetLength == headerPacketLength
 }
