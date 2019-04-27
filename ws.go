@@ -86,7 +86,7 @@ func Handshake(ws *WS, userId string, w http.ResponseWriter, r *http.Request) {
   client, ok := Search(ws, userId)
   if ok {
     client.conn = conn
-    client.setState(_IS_CONNECTED_STATE)
+    client.setState(_IS_NEW_STATE)
   } else {
     client = &Client{
       userID: userId,
