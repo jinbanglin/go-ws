@@ -8,7 +8,7 @@ import (
   "github.com/jinbanglin/log"
   "time"
   "github.com/spf13/viper"
-  "strconv"
+  "github.com/google/uuid"
 )
 
 type state = int32
@@ -53,6 +53,14 @@ type Client struct {
   roomID string
 }
 
+func (c *Client) setLogTraceID() {
+  c.ctx = context.WithValue(c.ctx, log.GContextKey, uuid.New().String())
+}
+
+func (c *Client) getLogTraceID() string {
+  return c.ctx.Value(log.GContextKey).(string)
+}
+
 func (c *Client) readLoop() {
 
   c.conn.SetReadLimit(MaxMessageSize)
@@ -67,12 +75,9 @@ func (c *Client) readLoop() {
     }
 
     c.conn.SetReadDeadline(time.Now().Add(PongWait))
+    c.setLogTraceID()
 
-    seq := MakeSeq()
-
-    c.ctx = context.WithValue(c.ctx, log.GContextKey, strconv.FormatUint(seq, 10))
-
-    b, err := gDispatch.Invoking(c.ctx, c, packet, seq)
+    b, err := gDispatch.Invoking(c.ctx, c, packet)
     if err != nil {
       log.Error2(c.ctx, err)
       continue

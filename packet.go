@@ -5,37 +5,20 @@ import (
   "encoding/binary"
   "github.com/jinbanglin/go-ws/bufferpool"
   "github.com/jinbanglin/helper"
-  "time"
+  "github.com/jinbanglin/log"
 )
 
-var PacketHeaderLength = 16
+const PacketHeaderLength = 10
 
 type PacketHeader struct {
-  ServerType uint16 // gateway for find server
-  ServerID   uint16 // gateway for find server
-  PacketLen  uint16 // packet length
-  MsgID      uint16 // message id,bind with business logic
-  Seq        uint64 // packet sequence
-}
-
-func (p *PacketHeader) GetSeq() uint64 {
-  return p.Seq
-}
-
-func (p *PacketHeader) GetMsgID() uint16 {
-  return p.MsgID
-}
-
-func (p *PacketHeader) GetServerType() uint16 {
-  return p.ServerType
-}
-
-func (p *PacketHeader) GetServerID() uint16 {
-  return p.ServerID
-}
-
-func (p *PacketHeader) GetPacketLength() uint16 {
-  return p.PacketLen
+  PacketLen     uint16 // packet length
+  MsgID         uint16 // message id,bind with business logic
+  ServerNameLen uint16
+  ServerIDLen   uint16
+  SeqLen        uint16
+  ServerName    string // gateway for find server
+  ServerID      string // gateway for find server
+  Seq           string // packet sequence
 }
 
 var packetPool = &sync.Pool{
@@ -45,47 +28,94 @@ var packetPool = &sync.Pool{
 }
 
 func packetHeaderRelease(header *PacketHeader) {
-  header.MsgID = 0
   header.PacketLen = 0
-  header.Seq = 0
-  header.ServerID = 0
-  header.ServerType = 0
+  header.MsgID = 0
+  header.ServerNameLen = 0
+  header.ServerIDLen = 0
+  header.SeqLen = 0
+  header.ServerName = ""
+  header.ServerID = ""
+  header.Seq = ""
+
   packetPool.Put(header)
 }
 
-func PackLocalPacket(header *PacketHeader, payload []byte, seq uint64) (b []byte) {
-  packetLength := uint16(len(payload)) + uint16(PacketHeaderLength)
-  b = make([]byte, packetLength)
-  binary.BigEndian.PutUint16(b[0:2], header.ServerType)
-  binary.BigEndian.PutUint16(b[2:4], header.ServerID)
-  binary.BigEndian.PutUint16(b[4:6], packetLength)
-  binary.BigEndian.PutUint16(b[6:8], header.MsgID)
-  binary.BigEndian.PutUint64(b[8:16], seq)
+func PackLocalPacket(
+  header *PacketHeader,
+  payload []byte,
+  serverNameLength, serverIDLen int,
+  serverName, serverID, seq string) (b []byte) {
 
-  copy(b[PacketHeaderLength:packetLength], payload)
+  header.PacketLen =
+    PacketHeaderLength +
+      uint16(len(payload)) +
+      uint16(len(seq)) +
+      uint16(serverNameLength+serverIDLen)
+
+  header.Seq = seq
+  header.ServerNameLen = uint16(serverNameLength)
+  header.ServerIDLen = uint16(serverIDLen)
+  header.SeqLen = uint16(len(seq))
+
+  if int(header.PacketLen) < PacketHeaderLength+serverNameLength+serverIDLen+len(seq) {
+    log.Error("invalid packet")
+    return
+  }
+
+  b = make([]byte, header.PacketLen)
+
+  binary.BigEndian.PutUint16(b[0:2], header.PacketLen)
+  binary.BigEndian.PutUint16(b[2:4], header.MsgID)
+  binary.BigEndian.PutUint16(b[4:6], header.ServerNameLen)
+  binary.BigEndian.PutUint16(b[6:8], header.ServerIDLen)
+  binary.BigEndian.PutUint16(b[8:10], header.SeqLen)
+
+  length := PacketHeaderLength
+  copy(b[length:length+serverNameLength], helper.String2Byte(serverName))
+
+  length += serverNameLength
+  copy(b[length:length+serverIDLen], helper.String2Byte(serverID))
+
+  length += serverIDLen
+  copy(b[length:length+len(seq)], helper.String2Byte(seq))
+
+  length += len(seq)
+  copy(b[length:header.PacketLen], payload)
+
   return
-}
-
-func MakeSeq() uint64 {
-  return uint64(time.Now().Unix()*100000) + helper.RandUInt64(100000, 999999)
 }
 
 func ParseRemotePacket(packet []byte) (
   header *PacketHeader, payload *bufferpool.ByteBuffer, packetLength int) {
 
-  if len(packet) < PacketHeaderLength {
+  header = packetPool.Get().(*PacketHeader)
+  header.PacketLen = binary.BigEndian.Uint16(packet[0:2])
+  header.MsgID = binary.BigEndian.Uint16(packet[2:4])
+  header.ServerNameLen = binary.BigEndian.Uint16(packet[4:6])
+  header.ServerIDLen = binary.BigEndian.Uint16(packet[6:8])
+  header.SeqLen = binary.BigEndian.Uint16(packet[8:10])
+
+  if len(packet) < PacketHeaderLength +
+    int(header.ServerNameLen +
+      header.ServerIDLen +
+      header.SeqLen) {
+
+    log.Error("invalid packet")
     return
   }
 
-  header = packetPool.Get().(*PacketHeader)
-  header.ServerType = binary.BigEndian.Uint16(packet[0:2])
-  header.ServerID = binary.BigEndian.Uint16(packet[2:4])
-  header.PacketLen = binary.BigEndian.Uint16(packet[4:6])
-  header.MsgID = binary.BigEndian.Uint16(packet[6:8])
-  header.Seq = binary.BigEndian.Uint64(packet[8:16])
+  length := PacketHeaderLength
+  header.ServerName = helper.Byte2String(packet[length : length+int(header.ServerNameLen)])
 
+  length += int(header.ServerNameLen)
+  header.ServerID = helper.Byte2String(packet[length : length+int(header.ServerIDLen)])
+
+  length += int(header.ServerIDLen)
+  header.Seq = helper.Byte2String(packet[length : length+int(header.SeqLen)])
+
+  length += int(header.SeqLen)
   payload = bufferpool.Get()
-  payload.Write(packet[PacketHeaderLength:int(header.PacketLen)])
+  payload.Write(packet[length:int(header.PacketLen)])
 
   packetLength = int(header.PacketLen)
 

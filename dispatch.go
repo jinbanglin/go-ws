@@ -58,7 +58,7 @@ func getEndpoint(msgID uint16) (endpoint *SchedulerEndpoint, err error) {
 func (d *Dispatch) Invoking(
   ctx context.Context,
   client *Client,
-  packet []byte, seq uint64) (b []byte, err error) {
+  packet []byte) (b []byte, err error) {
 
   header, payload, packetLength := ParseRemotePacket(packet)
 
@@ -80,22 +80,52 @@ func (d *Dispatch) Invoking(
     log.Error(err)
     return nil, err
   }
-  log.Debugf2(ctx, "FROM |user_id=%s |data=%v", client.userID, helper.Marshal2String(req))
+  log.Debugf2(
+    ctx,
+    "FROM"+
+      " |user_id=%s"+
+      " |data=%v"+
+      " |packet_header=%v"+
+      " |next_seq=%s",
+    client.userID,
+    helper.Marshal2String(req),
+    helper.Marshal2String(header),
+    client.getLogTraceID(),
+  )
 
   rsp, err := endpoint.endpoint(ctx, client, req)
   if err != nil {
     log.Error(err)
     return nil, err
   }
-  log.Debugf2(ctx, "TO |user_id=%s |data=%v", client.userID, helper.Marshal2String(rsp))
 
   body, err := proto.Marshal(rsp)
   if err != nil {
     log.Error(err)
     return nil, err
   }
+  b = PackLocalPacket(
+    header,
+    body,
+    client.ws.getServerNameLen(),
+    client.ws.getServerIDLen(),
+    client.ws.serverName,
+    client.ws.GetServerID(),
+    client.getLogTraceID(),
+  )
 
-  b = PackLocalPacket(header, body, seq)
+  log.Debugf2(
+    ctx,
+    "TO"+
+      " |user_id=%s"+
+      " |data=%v"+
+      " |packet_header=%v"+
+      " |next_seq=%s",
+    client.userID,
+    helper.Marshal2String(rsp),
+    helper.Marshal2String(header),
+    header.Seq,
+  )
   packetHeaderRelease(header)
   return
 }

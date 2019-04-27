@@ -4,23 +4,15 @@ package ws_proto;
 
 import "github.com/jinbanglin/micro/message/message.proto";
 
-message PingReq{
-    string ping=1;
+message PingReq {
+    string ping = 1;
 }
 
-message PingRsp{
-    msg.Message message=1;
-}
-
-message PongReq{
-    string pong=1;
-}
-
-message PongRsp{
-    msg.Message message=1;
-    string user_id=2;
-    string appid=3;
-    string room_id=4;
+message PongRsp {
+    msg.Message message = 1;
+    string user_id = 2;
+    string appid = 3;
+    string room_id = 4;
 }
 
 //protoc --proto_path=${GOPATH}/src:. --gogofaster_out=. --micro_out=:. *.proto

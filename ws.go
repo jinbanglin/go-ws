@@ -20,11 +20,30 @@ type WS struct {
   broadcast  chan *broadcastData
 
   clock *clock.Clock
+
+  serverName string
+  serverID   string
+}
+
+func (w *WS) GetServerName() string {
+  return w.serverName
+}
+
+func (w *WS) GetServerID() string {
+  return w.serverID
+}
+
+func (w *WS) getServerNameLen() int {
+  return len(w.serverName)
+}
+
+func (w *WS) getServerIDLen() int {
+  return len(w.serverID)
 }
 
 var GWS *WS
 
-func SetupWS() {
+func SetupWS(ServerName, ServerID string) {
   GWS = &WS{
     lock:       new(sync.Mutex),
     Clients:    new(sync.Map),
@@ -32,8 +51,12 @@ func SetupWS() {
     unregister: make(chan *Client),
     broadcast:  make(chan *broadcastData),
     clock:      clock.NewClock(),
+    serverName: ServerName,
+    serverID:   ServerID,
   }
   RegisterEndpoint(HeartbeatMsgID, &ws_proto.PingReq{}, Heartbeat)
+
+  log.Debugf("server start: ServerName=%s ServerID=%s", ServerName, ServerID)
   go GWS.Run()
 }
 

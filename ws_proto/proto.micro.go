@@ -9,8 +9,6 @@ It is generated from these files:
 
 It has these top-level messages:
 	PingReq
-	PingRsp
-	PongReq
 	PongRsp
 */
 package ws_proto
