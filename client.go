@@ -9,12 +9,13 @@ import (
   "time"
   "github.com/spf13/viper"
   "github.com/google/uuid"
+  "github.com/jinbanglin/go-micro/metadata"
 )
 
 type state = int32
 
 const _NORMAL_STATE state = 0
-const _IS_CONNECTED_STATE state = 1
+const _IS_NEW_STATE state = 1
 
 var (
   // Time allowed to write a message to the peer.
@@ -54,11 +55,17 @@ type Client struct {
 }
 
 func (c *Client) setLogTraceID() {
-  c.ctx = context.WithValue(c.ctx, log.GContextKey, uuid.New().String())
+  c.ctx = metadata.NewContext(c.ctx, metadata.Metadata{log.GContextKey: uuid.New().String()})
 }
 
 func (c *Client) getLogTraceID() string {
-  return c.ctx.Value(log.GContextKey).(string)
+  md, ok := metadata.FromContext(c.ctx)
+  if !ok {
+    md = metadata.Metadata{}
+    return ""
+  }
+
+  return md[log.GContextKey]
 }
 
 func (c *Client) readLoop() {
