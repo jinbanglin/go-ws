@@ -38,6 +38,10 @@ func (w *WS) getServerIDLen() int {
   return len(w.serverID)
 }
 
+func (w *WS) getServerAddressLen() int {
+  return len(w.serverAddress)
+}
+
 func (w *WS) getServerAddress() string {
   return w.serverAddress
 }

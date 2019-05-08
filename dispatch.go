@@ -109,8 +109,10 @@ func (d *Dispatch) Invoking(
     body,
     GWS.getServerNameLen(),
     GWS.getServerIDLen(),
+    GWS.getServerAddressLen(),
     GWS.serverName,
     GWS.GetServerID(),
+    GWS.getServerAddress(),
     client.getLogTraceID(),
   )
 
@@ -134,11 +136,12 @@ const HeartbeatMsgID MessageIDType = 10000
 
 func Heartbeat(ctx context.Context, client *Client, req proto.Message) (rsp proto.Message, err error) {
   rsp = &ws_proto.PongRsp{
-    Appid:      client.appID,
-    UserId:     client.userID,
-    RoomId:     client.roomID,
-    ServerName: client.ServerName,
-    ServerId:   client.ServerID,
-    Message:    &msg.Message{Code: 200, Msg: ""}}
+    Appid:         client.appID,
+    UserId:        client.userID,
+    RoomId:        client.roomID,
+    ServerName:    client.ServerName,
+    ServerId:      client.ServerID,
+    ServerAddress: client.ServerAddress,
+    Message:       &msg.Message{Code: 200, Msg: ""}}
   return
 }

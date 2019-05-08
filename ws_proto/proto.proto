@@ -15,6 +15,7 @@ message PongRsp {
     string room_id = 4;
     string server_id=5;
     string server_name=6;
+    string server_address=7;
 }
 
 message RpcReq {

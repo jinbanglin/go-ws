@@ -21,8 +21,8 @@ type state = int32
 
 const (
   _                 state = iota
-  _IS_ONLINE_STATE
   _IS_OFFLINE_STATE
+  _IS_ONLINE_STATE
 )
 
 var (
