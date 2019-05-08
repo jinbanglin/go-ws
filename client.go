@@ -166,7 +166,7 @@ func BroadcastMulti(userID []string, msg *BroadcastData) {
     if c := getUserState(v); c != nil {
 
       msg.userID = v
-      if strings.EqualFold(c.ServerID, GWS.serverID) {
+      if strings.EqualFold(c.ServerAddress, GWS.serverAddress) {
         broadcastLocalServer(msg)
       } else {
         broadcastOtherServer(msg)
@@ -177,11 +177,21 @@ func BroadcastMulti(userID []string, msg *BroadcastData) {
 
 func BroadcastSingle(msg *BroadcastData) {
   if c := getUserState(msg.userID); c != nil {
-    if strings.EqualFold(c.ServerID, GWS.serverID) {
+    if strings.EqualFold(c.ServerAddress, GWS.serverAddress) {
+
       broadcastLocalServer(msg)
     } else {
+
       broadcastOtherServer(msg)
     }
+  }
+}
+
+func BroadcastByAddress(address string, msg *BroadcastData) {
+  if strings.EqualFold(address, GWS.serverAddress) {
+    broadcastLocalServer(msg)
+  } else {
+    broadcastOtherServer(msg)
   }
 }
 
@@ -196,7 +206,7 @@ func broadcastOtherServer(msg *BroadcastData) {
     RoomId: msg.roomID,
     Packet: msg.data,
     Seq:    msg.seq,
-  }, client.WithAddress("ss"))
+  }, client.WithAddress(msg.address))
 }
 
 func (c *Client) RemoteIP() string {

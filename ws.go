@@ -80,10 +80,11 @@ func SetupWS() {
 }
 
 type BroadcastData struct {
-  roomID string
-  userID string
-  seq    string
-  data   []byte
+  roomID  string
+  userID  string
+  address string
+  seq     string
+  data    []byte
 }
 
 func SetBroadcastData(roomID, userID string, b []byte) *BroadcastData {
