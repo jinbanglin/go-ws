@@ -73,7 +73,7 @@ func SetupWS() {
       clock:         clock.NewClock(),
       serverName:    socketService.Server().Options().Name,
       serverID:      socketService.Server().Options().Id,
-      serverAddress: helper.GetLocalIP() + getPort(socketService.Server().Options().Address),
+      serverAddress: helper.GetLocalIP() + ":" + getPort(socketService.Server().Options().Address),
     }
     RegisterEndpoint(HeartbeatMsgID, &ws_proto.PingReq{}, Heartbeat)
 

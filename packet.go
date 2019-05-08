@@ -6,9 +6,10 @@ import (
   "github.com/jinbanglin/go-ws/bufferpool"
   "github.com/jinbanglin/helper"
   "github.com/jinbanglin/log"
+  "errors"
 )
 
-const PacketHeaderLength = 10
+const PacketHeaderLength = 12
 
 type PacketHeader struct {
   PacketLen        uint16 // packet length
@@ -58,10 +59,10 @@ func PackLocalPacket(
   header.Seq = seq
   header.ServerNameLen = uint16(serverNameLength)
   header.ServerIDLen = uint16(serverIDLen)
+  header.ServerAddressLen = uint16(serverAddressLen)
   header.SeqLen = uint16(len(seq))
 
   b = make([]byte, header.PacketLen)
-
   binary.BigEndian.PutUint16(b[0:2], header.PacketLen)
   binary.BigEndian.PutUint16(b[2:4], header.MsgID)
   binary.BigEndian.PutUint16(b[4:6], header.ServerNameLen)
@@ -83,12 +84,11 @@ func PackLocalPacket(
 
   length += len(seq)
   copy(b[length:header.PacketLen], payload)
-
   return
 }
 
 func ParseRemotePacket(packet []byte) (
-  header *PacketHeader, payload *bufferpool.ByteBuffer, packetLength int) {
+  header *PacketHeader, payload *bufferpool.ByteBuffer, err error) {
 
   header = packetPool.Get().(*PacketHeader)
   header.PacketLen = binary.BigEndian.Uint16(packet[0:2])
@@ -98,12 +98,6 @@ func ParseRemotePacket(packet []byte) (
   header.ServerAddressLen = binary.BigEndian.Uint16(packet[8:10])
   header.SeqLen = binary.BigEndian.Uint16(packet[10:12])
 
-  log.Debug("--------",len(packet), PacketHeaderLength +
-    int(header.ServerNameLen +
-      header.ServerIDLen +
-      header.ServerAddressLen +
-      header.SeqLen))
-
   if len(packet) < PacketHeaderLength +
     int(header.ServerNameLen +
       header.ServerIDLen +
@@ -111,7 +105,7 @@ func ParseRemotePacket(packet []byte) (
       header.SeqLen) {
 
     log.Error("invalid packet")
-    return
+    return header, nil, errors.New("invalid packet")
   }
 
   length := PacketHeaderLength
@@ -127,10 +121,9 @@ func ParseRemotePacket(packet []byte) (
   header.Seq = helper.Byte2String(packet[length : length+int(header.SeqLen)])
 
   length += int(header.SeqLen)
+
   payload = bufferpool.Get()
   payload.Write(packet[length:int(header.PacketLen)])
-
-  packetLength = int(header.PacketLen)
 
   return
 }

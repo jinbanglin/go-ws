@@ -114,3 +114,7 @@ func (b *ByteBuffer) Release() {
   b.Reset()
   Put(b)
 }
+
+func (b *ByteBuffer) Offset(a, a1 int) []byte {
+  return b.b[a:a1]
+}

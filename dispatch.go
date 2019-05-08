@@ -60,9 +60,18 @@ func (d *Dispatch) Invoking(
   client *Client,
   packet []byte) (b []byte, err error) {
 
-  header, payload, packetLength := ParseRemotePacket(packet)
+  header, payload, err := ParseRemotePacket(packet)
+  defer func() {
+    if payload!=nil{
+      payload.Release()
+    }
+    packetHeaderRelease(header)
+  }()
+  if err != nil {
+    return nil, err
+  }
 
-  if !verifyPacket(len(packet), packetLength) {
+  if !verifyPacket(len(packet), int(header.PacketLen)) {
     log.Error("verifyPacket |err=invalid packet")
     return nil, errors.New("invalid packet")
   }
@@ -76,6 +85,7 @@ func (d *Dispatch) Invoking(
   req := reflect.New(endpoint.RequestType).Interface().(proto.Message)
 
   err = proto.Unmarshal(payload.Bytes(), req)
+
   if err != nil {
     log.Error(err)
     return nil, err
@@ -104,6 +114,7 @@ func (d *Dispatch) Invoking(
     log.Error(err)
     return nil, err
   }
+
   b = PackLocalPacket(
     header,
     body,
@@ -128,7 +139,6 @@ func (d *Dispatch) Invoking(
     helper.Marshal2String(header),
     header.Seq,
   )
-  packetHeaderRelease(header)
   return
 }
 
