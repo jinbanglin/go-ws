@@ -10,6 +10,8 @@ It is generated from these files:
 It has these top-level messages:
 	PingReq
 	PongRsp
+	RpcReq
+	RpcRsp
 */
 package ws_proto
 
@@ -17,6 +19,12 @@ import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
 import _ "github.com/jinbanglin/micro/message"
+
+import (
+	client "github.com/jinbanglin/go-micro/client"
+	server "github.com/jinbanglin/go-micro/server"
+	context "context"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -28,3 +36,67 @@ var _ = math.Inf
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
+// Reference imports to suppress errors if they are not otherwise used.
+var _ context.Context
+var _ client.Option
+var _ server.Option
+
+// Client API for WsRpc service
+
+type WsRpcService interface {
+	Request(ctx context.Context, in *RpcReq, opts ...client.CallOption) (*RpcRsp, error)
+}
+
+type wsRpcService struct {
+	c    client.Client
+	name string
+}
+
+func NewWsRpcService(name string, c client.Client) WsRpcService {
+	if c == nil {
+		c = client.NewClient()
+	}
+	if len(name) == 0 {
+		name = "ws_proto"
+	}
+	return &wsRpcService{
+		c:    c,
+		name: name,
+	}
+}
+
+func (c *wsRpcService) Request(ctx context.Context, in *RpcReq, opts ...client.CallOption) (*RpcRsp, error) {
+	req := c.c.NewRequest(c.name, "WsRpc.Request", in)
+	out := new(RpcRsp)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// Server API for WsRpc service
+
+type WsRpcHandler interface {
+	Request(context.Context, *RpcReq, *RpcRsp) error
+}
+
+func RegisterWsRpcHandler(s server.Server, hdlr WsRpcHandler, opts ...server.HandlerOption) error {
+	type wsRpc interface {
+		Request(ctx context.Context, in *RpcReq, out *RpcRsp) error
+	}
+	type WsRpc struct {
+		wsRpc
+	}
+	h := &wsRpcHandler{hdlr}
+	return s.Handle(s.NewHandler(&WsRpc{h}, opts...))
+}
+
+type wsRpcHandler struct {
+	WsRpcHandler
+}
+
+func (h *wsRpcHandler) Request(ctx context.Context, in *RpcReq, out *RpcRsp) error {
+	return h.WsRpcHandler.Request(ctx, in, out)
+}

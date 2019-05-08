@@ -107,10 +107,10 @@ func (d *Dispatch) Invoking(
   b = PackLocalPacket(
     header,
     body,
-    client.ws.getServerNameLen(),
-    client.ws.getServerIDLen(),
-    client.ws.serverName,
-    client.ws.GetServerID(),
+    GWS.getServerNameLen(),
+    GWS.getServerIDLen(),
+    GWS.serverName,
+    GWS.GetServerID(),
     client.getLogTraceID(),
   )
 
@@ -134,9 +134,11 @@ const HeartbeatMsgID MessageIDType = 10000
 
 func Heartbeat(ctx context.Context, client *Client, req proto.Message) (rsp proto.Message, err error) {
   rsp = &ws_proto.PongRsp{
-    Appid:   client.appID,
-    UserId:  client.userID,
-    RoomId:  client.roomID,
-    Message: &msg.Message{Code: 200, Msg: ""}}
+    Appid:      client.appID,
+    UserId:     client.userID,
+    RoomId:     client.roomID,
+    ServerName: client.ServerName,
+    ServerId:   client.ServerID,
+    Message:    &msg.Message{Code: 200, Msg: ""}}
   return
 }

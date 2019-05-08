@@ -10,12 +10,20 @@ import (
   "github.com/spf13/viper"
   "github.com/google/uuid"
   "github.com/jinbanglin/go-micro/metadata"
+  "github.com/jinbanglin/go-ws/ws_proto"
+  "github.com/jinbanglin/helper"
+  "encoding/json"
+  "strings"
+  "github.com/jinbanglin/go-micro/client"
 )
 
 type state = int32
 
-const _NORMAL_STATE state = 0
-const _IS_NEW_STATE state = 1
+const (
+  _                 state = iota
+  _IS_ONLINE_STATE
+  _IS_OFFLINE_STATE
+)
 
 var (
   // Time allowed to write a message to the peer.
@@ -29,6 +37,12 @@ var (
 
   // Maximum message size allowed from peer.
   MaxMessageSize int64 = 1024
+
+  // read channel cache
+  MaxReadCache = 10240
+
+  // write channel cache
+  MaxWriteCache = 10240
 )
 
 func WsChaos() {
@@ -41,17 +55,26 @@ func WsChaos() {
   if v := viper.GetInt64("ws.max_message_size"); v > 0 {
     MaxMessageSize = v
   }
+  if v := viper.GetInt("ws.read_cache"); v > 0 {
+    MaxReadCache = v
+  }
+  if v := viper.GetInt("ws.write_cache"); v > 0 {
+    MaxWriteCache = v
+  }
 }
 
 type Client struct {
-  ws     *WS
   ctx    context.Context
   conn   *websocket.Conn
   send   chan []byte
-  state  int32
   appID  string
   userID string
   roomID string
+
+  State         int32
+  ServerName    string
+  ServerID      string
+  ServerAddress string
 }
 
 func (c *Client) setLogTraceID() {
@@ -89,11 +112,11 @@ func (c *Client) readLoop() {
       log.Error2(c.ctx, err)
       continue
     }
-    Broadcast(&broadcastData{
+    broadcastLocalServer(&BroadcastData{
       roomID: c.roomID,
       userID: c.userID,
       data:   b,
-    }, c.ws)
+    })
   }
   c.conn.Close()
 }
@@ -104,7 +127,7 @@ func (c *Client) writeLoop() {
   }()
   var clockQuit = make(chan struct{})
   var job clock.Job
-  job, _ = c.ws.clock.AddJobRepeat(PingPeriod, 0, func() {
+  job, _ = GWS.clock.AddJobRepeat(PingPeriod, 0, func() {
     c.conn.SetWriteDeadline(time.Now().Add(WriteWait))
     if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
       clockQuit <- struct{}{}
@@ -138,8 +161,42 @@ func (c *Client) writeLoop() {
   }
 }
 
-func Broadcast(msg *broadcastData, ws *WS) {
-  ws.broadcast <- msg
+func BroadcastMulti(userID []string, msg *BroadcastData) {
+  for _, v := range userID {
+    if c := getUserState(v); c != nil {
+
+      msg.userID = v
+      if strings.EqualFold(c.ServerID, GWS.serverID) {
+        broadcastLocalServer(msg)
+      } else {
+        broadcastOtherServer(msg)
+      }
+    }
+  }
+}
+
+func BroadcastSingle(msg *BroadcastData) {
+  if c := getUserState(msg.userID); c != nil {
+    if strings.EqualFold(c.ServerID, GWS.serverID) {
+      broadcastLocalServer(msg)
+    } else {
+      broadcastOtherServer(msg)
+    }
+  }
+}
+
+func broadcastLocalServer(msg *BroadcastData) {
+  GWS.broadcast <- msg
+}
+
+func broadcastOtherServer(msg *BroadcastData) {
+
+  GWSService.Request(context.Background(), &ws_proto.RpcReq{
+    UserId: msg.userID,
+    RoomId: msg.roomID,
+    Packet: msg.data,
+    Seq:    msg.seq,
+  }, client.WithAddress("ss"))
 }
 
 func (c *Client) RemoteIP() string {
@@ -163,13 +220,53 @@ func (c *Client) getConn() *websocket.Conn {
 }
 
 func (c *Client) getState() int32 {
-  return atomic.LoadInt32(&c.state)
+  return atomic.LoadInt32(&c.State)
 }
 
 func (c *Client) setState(new state) {
-  atomic.SwapInt32(&c.state, new)
+  atomic.SwapInt32(&c.State, new)
 }
 
 func (c *Client) LocalAddr() string {
   return c.conn.LocalAddr().String()
+}
+
+const _REDIS_KEY_USER_STATE = "ws:user:state:"
+
+func (c *Client) userOnline() {
+  c.setState(_IS_ONLINE_STATE)
+  helper.GRedisRing.Set(_REDIS_KEY_USER_STATE+c.userID, helper.Marshal2Bytes(c), time.Hour*24)
+}
+
+func (c *Client) userOffline() {
+  c.setState(_IS_OFFLINE_STATE)
+  helper.GRedisRing.Del(_REDIS_KEY_USER_STATE + c.userID)
+}
+
+func getUserState(userID string) *Client {
+  c := &Client{}
+  b, err := helper.GRedisRing.Get(_REDIS_KEY_USER_STATE + userID).Bytes()
+  if err != nil {
+    return nil
+  }
+  if json.Unmarshal(b, c) != nil {
+    return nil
+  }
+  return c
+}
+
+// PipelineUserState:get all user's state,
+// eg.find from a room
+func PipelineUserState(userID []string) []*Client {
+  pipe := helper.GRedisRing.Pipeline()
+  results := make([]*Client, len(userID))
+  for _, v := range userID {
+    c := &Client{}
+    if b, err := pipe.Get(_REDIS_KEY_USER_STATE + v).Bytes(); err == nil {
+      if json.Unmarshal(b, c) == nil {
+        results = append(results, c)
+      }
+    }
+  }
+  return results
 }

@@ -13,6 +13,24 @@ message PongRsp {
     string user_id = 2;
     string appid = 3;
     string room_id = 4;
+    string server_id=5;
+    string server_name=6;
+}
+
+message RpcReq {
+    string user_id = 1;
+    string room_id = 2;
+    string seq = 3;
+    bytes packet = 4;
+}
+
+message RpcRsp {
+    msg.Message message = 1;
+}
+
+service WsRpc {
+    rpc Request (RpcReq) returns (RpcRsp) {
+    }; //rpc request
 }
 
 //protoc --proto_path=${GOPATH}/src:. --gogofaster_out=. --micro_out=:. *.proto
