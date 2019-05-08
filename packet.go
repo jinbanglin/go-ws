@@ -53,17 +53,12 @@ func PackLocalPacket(
     PacketHeaderLength +
       uint16(len(payload)) +
       uint16(len(seq)) +
-      uint16(serverNameLength+serverIDLen)
+      uint16(serverNameLength+serverIDLen+serverAddressLen)
 
   header.Seq = seq
   header.ServerNameLen = uint16(serverNameLength)
   header.ServerIDLen = uint16(serverIDLen)
   header.SeqLen = uint16(len(seq))
-
-  if int(header.PacketLen) < PacketHeaderLength+serverNameLength+serverIDLen+len(seq) {
-    log.Error("invalid packet")
-    return
-  }
 
   b = make([]byte, header.PacketLen)
 
@@ -81,7 +76,7 @@ func PackLocalPacket(
   copy(b[length:length+serverIDLen], helper.String2Byte(serverID))
 
   length += serverIDLen
-  copy(b[length:length+len(serverAddress)], helper.String2Byte(serverAddress))
+  copy(b[length:length+serverAddressLen], helper.String2Byte(serverAddress))
 
   length += serverAddressLen
   copy(b[length:length+len(seq)], helper.String2Byte(seq))
@@ -103,9 +98,16 @@ func ParseRemotePacket(packet []byte) (
   header.ServerAddressLen = binary.BigEndian.Uint16(packet[8:10])
   header.SeqLen = binary.BigEndian.Uint16(packet[10:12])
 
+  log.Debug("--------",len(packet), PacketHeaderLength +
+    int(header.ServerNameLen +
+      header.ServerIDLen +
+      header.ServerAddressLen +
+      header.SeqLen))
+
   if len(packet) < PacketHeaderLength +
     int(header.ServerNameLen +
       header.ServerIDLen +
+      header.ServerAddressLen +
       header.SeqLen) {
 
     log.Error("invalid packet")

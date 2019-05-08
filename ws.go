@@ -8,6 +8,9 @@ import (
   "github.com/gorilla/websocket"
   "context"
   "github.com/jinbanglin/go-ws/ws_proto"
+  "time"
+  "github.com/jinbanglin/helper"
+  "strings"
 )
 
 type WS struct {
@@ -59,7 +62,7 @@ func SetupWS() {
       log.Error(err)
     }
   }()
-
+  time.Sleep(time.Second * 1)
   {
     GWS = &WS{
       lock:          new(sync.Mutex),
@@ -70,13 +73,20 @@ func SetupWS() {
       clock:         clock.NewClock(),
       serverName:    socketService.Server().Options().Name,
       serverID:      socketService.Server().Options().Id,
-      serverAddress: socketService.Server().Options().Address,
+      serverAddress: helper.GetLocalIP() + getPort(socketService.Server().Options().Address),
     }
     RegisterEndpoint(HeartbeatMsgID, &ws_proto.PingReq{}, Heartbeat)
 
     go GWS.Run()
   }
-  log.Debugf("socket server start at: name=%s id=%s address=%s", GWS.serverName, GWS.serverID, GWS.serverAddress)
+  log.Debugf("socket server start at: name=%s id=%s address=%s",
+    GWS.serverName,
+    GWS.serverID,
+    GWS.serverAddress)
+}
+
+func getPort(address string) string {
+  return strings.Split(address, ":")[3]
 }
 
 type BroadcastData struct {
