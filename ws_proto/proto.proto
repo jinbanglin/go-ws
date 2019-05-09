@@ -34,5 +34,13 @@ service WsRpc {
     }; //rpc request
 }
 
+message SendMsgTestReq{
+    string user_id=1;
+}
+
+message SendMsgTestRsp{
+    msg.Message message=1;
+}
+
 //protoc --proto_path=${GOPATH}/src:. --gogofaster_out=. --micro_out=:. *.proto
 

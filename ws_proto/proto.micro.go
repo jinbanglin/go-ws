@@ -12,6 +12,8 @@ It has these top-level messages:
 	PongRsp
 	RpcReq
 	RpcRsp
+	SendMsgTestReq
+	SendMsgTestRsp
 */
 package ws_proto
 

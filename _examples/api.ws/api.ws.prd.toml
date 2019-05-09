@@ -1,0 +1,35 @@
+[server]
+version               ="_prd_v1.1.1"
+
+[etcdv3]
+endpoints             =["172.26.15.210:2379"]
+
+[redis]
+addr                  =[""]
+heartbeatfrequency    =500
+db                    =0
+password              =""
+maxretries            =3
+dialtimeout           =3
+readtimeout           =3
+writetimeout          =3
+poolsize              =4096
+pooltimeout           =30
+idletimeout           =500
+idlecheckfrequency    =500
+
+[log]
+bucketlen             =1024
+linkname              ="api.ws"
+filepath              ="/root/logs"
+level                 =1
+maxsize               =256
+out                   ="file"
+send_mail             =true
+
+
+[ws]
+write_wait            =10
+pong_wait             =300
+max_message_size      =1024
+service_code_size     =5
