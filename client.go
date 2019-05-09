@@ -176,7 +176,7 @@ func BroadcastToOne(ctx context.Context, msgID uint16, userID, roomID string, cl
       })
       return nil, nil
     } else {
-      return broadcastOtherServer(ctx, userID, roomID, client, packet)
+      return broadcastOtherServer(ctx, userID, roomID, c, packet)
     }
   } else {
     return nil, nil

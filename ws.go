@@ -156,7 +156,6 @@ func (w *WS) Run() {
       //} else {
       if cnn, ok := w.Clients.Load(packet.userID);
         ok && cnn.(*Client).getState() == _IS_ONLINE_STATE {
-
         cnn.(*Client).send <- packet.data
       }
       //}
