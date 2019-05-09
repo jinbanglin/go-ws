@@ -8,14 +8,14 @@ import (
   "github.com/gorilla/websocket"
   "context"
   "github.com/jinbanglin/go-ws/ws_proto"
-  "time"
-  "github.com/jinbanglin/helper"
   "strings"
+  "github.com/jinbanglin/go-micro"
+  "github.com/jinbanglin/helper"
 )
 
 type WS struct {
+  lock             *sync.WaitGroup
   Clients          *sync.Map
-  lock             *sync.Mutex
   register         chan *Client
   unregister       chan *Client
   broadcast        chan *BroadcastData
@@ -31,37 +31,48 @@ type WS struct {
 var GWS *WS
 
 func SetupWS() {
+  GWS = &WS{
+    lock:       new(sync.WaitGroup),
+    Clients:    new(sync.Map),
+    register:   make(chan *Client),
+    unregister: make(chan *Client),
+    broadcast:  make(chan *BroadcastData, 10240),
+    clock:      clock.NewClock(),
+  }
 
-  socketService := GWS.setupWSRpcServer()
+  GWS.lock.Add(1)
+
+  var socketService micro.Service
+  socketService = GWS.setupWSRpcServer(func() micro.Option {
+    return micro.AfterStart(func() error {
+
+      GWS.lock.Done()
+
+      GWS.ServerName = socketService.Server().Options().Name
+      GWS.ServerID = socketService.Server().Options().Id
+      GWS.ServerAddress = helper.GetLocalIP() + ":" + getPort(socketService.Server().Options().Address)
+      GWS.ServerNameLen = len(GWS.ServerName)
+      GWS.ServerIDLen = len(GWS.ServerID)
+      GWS.ServerAddressLen = len(GWS.ServerAddress)
+      RegisterEndpoint(HeartbeatMsgID, &ws_proto.PingReq{}, Heartbeat)
+
+      go GWS.Run()
+      return nil
+    })
+  })
+
+  go func() {
+    if err := socketService.Run(); err != nil {
+      panic(err)
+    }
+  }()
+
+  GWS.lock.Wait()
+
   socketService.Init()
   gWsRpc = &WsRpc{Client: socketService.Client()}
   ws_proto.RegisterWsRpcHandler(socketService.Server(), gWsRpc)
-  go func() {
-    if err := socketService.Run(); err != nil {
-      log.Error(err)
-    }
-  }()
-  time.Sleep(time.Second * 1)
-  {
-    GWS = &WS{
-      lock:          new(sync.Mutex),
-      Clients:       new(sync.Map),
-      register:      make(chan *Client),
-      unregister:    make(chan *Client),
-      broadcast:     make(chan *BroadcastData, 10240),
-      clock:         clock.NewClock(),
-      ServerName:    socketService.Server().Options().Name,
-      ServerID:      socketService.Server().Options().Id,
-      ServerAddress: helper.GetLocalIP() + ":" + getPort(socketService.Server().Options().Address),
-    }
 
-    GWS.ServerNameLen = len(GWS.ServerName)
-    GWS.ServerIDLen = len(GWS.ServerID)
-    GWS.ServerAddressLen = len(GWS.ServerAddress)
-    RegisterEndpoint(HeartbeatMsgID, &ws_proto.PingReq{}, Heartbeat)
-
-    go GWS.Run()
-  }
   log.Debugf("socket server start at: name=%s id=%s address=%s",
     GWS.ServerName,
     GWS.ServerID,
@@ -121,8 +132,6 @@ func Handshake(userId string, w http.ResponseWriter, r *http.Request) {
 
 func (w *WS) Run() {
 
-  w.lock.Lock()
-
   for {
     select {
     case client := <-w.register:
@@ -161,6 +170,4 @@ func (w *WS) Run() {
       //}
     }
   }
-
-  w.lock.Unlock()
 }

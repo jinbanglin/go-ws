@@ -94,6 +94,7 @@ func (c *Client) readLoop() {
   c.conn.SetReadLimit(MaxMessageSize)
 
   for {
+    c.conn.SetReadDeadline(time.Now().Add(PongWait))
     _, packet, err := c.conn.ReadMessage()
     if err != nil {
       if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -102,7 +103,6 @@ func (c *Client) readLoop() {
       break
     }
 
-    c.conn.SetReadDeadline(time.Now().Add(PongWait))
     c.SetLogTraceID()
 
     b, err := gDispatch.Invoking(c.ctx, c, packet)

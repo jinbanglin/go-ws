@@ -25,6 +25,6 @@ func (w *WsRpc) Request(ctx context.Context, req *ws_proto.RpcReq, rsp *ws_proto
   return nil
 }
 
-func (w *WS) setupWSRpcServer() micro.Service {
-  return micro.NewService(opts.SServerOptions(_WS_SERVER_NAME)...)
+func (w *WS) setupWSRpcServer(f func() micro.Option) micro.Service {
+  return micro.NewService(append(opts.SServerOptions(_WS_SERVER_NAME), f())...)
 }
