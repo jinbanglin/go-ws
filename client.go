@@ -75,7 +75,7 @@ type Client struct {
   State  int32
 }
 
-func (c *Client) setLogTraceID() {
+func (c *Client) SetLogTraceID() {
   c.ctx = metadata.NewContext(c.ctx, metadata.Metadata{log.GContextKey: uuid.New().String()})
 }
 
@@ -103,7 +103,7 @@ func (c *Client) readLoop() {
     }
 
     c.conn.SetReadDeadline(time.Now().Add(PongWait))
-    c.setLogTraceID()
+    c.SetLogTraceID()
 
     b, err := gDispatch.Invoking(c.ctx, c, packet)
     if err != nil {
