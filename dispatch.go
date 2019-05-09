@@ -62,7 +62,7 @@ func (d *Dispatch) Invoking(
 
   header, payload, err := ParseRemotePacket(packet)
   defer func() {
-    if payload!=nil{
+    if payload != nil {
       payload.Release()
     }
     packetHeaderRelease(header)
@@ -97,7 +97,7 @@ func (d *Dispatch) Invoking(
       " |data=%v"+
       " |packet_header=%v"+
       " |next_seq=%s",
-    client.userID,
+    client.UserID,
     helper.Marshal2String(req),
     helper.Marshal2String(header),
     client.getLogTraceID(),
@@ -115,17 +115,7 @@ func (d *Dispatch) Invoking(
     return nil, err
   }
 
-  b = PackLocalPacket(
-    header,
-    body,
-    GWS.getServerNameLen(),
-    GWS.getServerIDLen(),
-    GWS.getServerAddressLen(),
-    GWS.serverName,
-    GWS.GetServerID(),
-    GWS.getServerAddress(),
-    client.getLogTraceID(),
-  )
+  b = PackLocalPacket(header, body, client)
 
   log.Debugf2(
     ctx,
@@ -134,7 +124,7 @@ func (d *Dispatch) Invoking(
       " |data=%v"+
       " |packet_header=%v"+
       " |next_seq=%s",
-    client.userID,
+    client.UserID,
     helper.Marshal2String(rsp),
     helper.Marshal2String(header),
     header.Seq,
@@ -146,9 +136,9 @@ const HeartbeatMsgID MessageIDType = 10000
 
 func Heartbeat(ctx context.Context, client *Client, req proto.Message) (rsp proto.Message, err error) {
   rsp = &ws_proto.PongRsp{
-    Appid:         client.appID,
-    UserId:        client.userID,
-    RoomId:        client.roomID,
+    Appid:         client.AppID,
+    UserId:        client.UserID,
+    RoomId:        client.RoomID,
     ServerName:    client.ServerName,
     ServerId:      client.ServerID,
     ServerAddress: client.ServerAddress,

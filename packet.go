@@ -47,20 +47,19 @@ func packetHeaderRelease(header *PacketHeader) {
 func PackLocalPacket(
   header *PacketHeader,
   payload []byte,
-  serverNameLength, serverIDLen, serverAddressLen int,
-  serverName, serverID, serverAddress, seq string) (b []byte) {
+  client *Client) (b []byte) {
 
-  header.PacketLen =
-    PacketHeaderLength +
-      uint16(len(payload)) +
-      uint16(len(seq)) +
-      uint16(serverNameLength+serverIDLen+serverAddressLen)
+  header.SeqLen = uint16(len(client.getLogTraceID()))
+  header.PacketLen = PacketHeaderLength +
+    header.SeqLen +
+    uint16(len(payload)) + uint16(client.ServerNameLen +
+    client.ServerIDLen +
+    client.ServerAddressLen)
 
-  header.Seq = seq
-  header.ServerNameLen = uint16(serverNameLength)
-  header.ServerIDLen = uint16(serverIDLen)
-  header.ServerAddressLen = uint16(serverAddressLen)
-  header.SeqLen = uint16(len(seq))
+  header.Seq = client.getLogTraceID()
+  header.ServerNameLen = uint16(client.ServerNameLen)
+  header.ServerIDLen = uint16(client.ServerIDLen)
+  header.ServerAddressLen = uint16(client.ServerAddressLen)
 
   b = make([]byte, header.PacketLen)
   binary.BigEndian.PutUint16(b[0:2], header.PacketLen)
@@ -71,18 +70,18 @@ func PackLocalPacket(
   binary.BigEndian.PutUint16(b[10:12], header.SeqLen)
 
   length := PacketHeaderLength
-  copy(b[length:length+serverNameLength], helper.String2Byte(serverName))
+  copy(b[length:length+client.ServerNameLen], helper.String2Byte(client.ServerName))
 
-  length += serverNameLength
-  copy(b[length:length+serverIDLen], helper.String2Byte(serverID))
+  length += client.ServerNameLen
+  copy(b[length:length+client.ServerIDLen], helper.String2Byte(client.ServerID))
 
-  length += serverIDLen
-  copy(b[length:length+serverAddressLen], helper.String2Byte(serverAddress))
+  length += client.ServerIDLen
+  copy(b[length:length+client.ServerAddressLen], helper.String2Byte(client.ServerAddress))
 
-  length += serverAddressLen
-  copy(b[length:length+len(seq)], helper.String2Byte(seq))
+  length += client.ServerAddressLen
+  copy(b[length:length+int(header.SeqLen)], helper.String2Byte(client.getLogTraceID()))
 
-  length += len(seq)
+  length += int(header.SeqLen)
   copy(b[length:header.PacketLen], payload)
   return
 }

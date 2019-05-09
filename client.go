@@ -15,6 +15,7 @@ import (
   "encoding/json"
   "strings"
   "github.com/jinbanglin/go-micro/client"
+  "github.com/gogo/protobuf/proto"
 )
 
 type state = int32
@@ -64,17 +65,14 @@ func WsChaos() {
 }
 
 type Client struct {
+  *WS
   ctx    context.Context
   conn   *websocket.Conn
   send   chan []byte
-  appID  string
-  userID string
-  roomID string
-
-  State         int32
-  ServerName    string
-  ServerID      string
-  ServerAddress string
+  AppID  string
+  UserID string
+  RoomID string
+  State  int32
 }
 
 func (c *Client) setLogTraceID() {
@@ -113,8 +111,8 @@ func (c *Client) readLoop() {
       continue
     }
     broadcastLocalServer(&BroadcastData{
-      roomID: c.roomID,
-      userID: c.userID,
+      roomID: c.RoomID,
+      userID: c.UserID,
       data:   b,
     })
   }
@@ -127,7 +125,7 @@ func (c *Client) writeLoop() {
   }()
   var clockQuit = make(chan struct{})
   var job clock.Job
-  job, _ = GWS.clock.AddJobRepeat(PingPeriod, 0, func() {
+  job, _ = c.clock.AddJobRepeat(PingPeriod, 0, func() {
     c.conn.SetWriteDeadline(time.Now().Add(WriteWait))
     if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
       clockQuit <- struct{}{}
@@ -161,37 +159,27 @@ func (c *Client) writeLoop() {
   }
 }
 
-func BroadcastMulti(userID []string, msg *BroadcastData) {
-  for _, v := range userID {
-    if c := getUserState(v); c != nil {
-
-      msg.userID = v
-      if strings.EqualFold(c.ServerAddress, GWS.serverAddress) {
-        broadcastLocalServer(msg)
-      } else {
-        broadcastOtherServer(msg)
-      }
-    }
+func BroadcastToOne(ctx context.Context, msgID uint16, userID, roomID string, client *Client, payload proto.Message) (*ws_proto.RpcRsp, error) {
+  b, err := proto.Marshal(payload)
+  if err != nil {
+    return nil, nil
   }
-}
 
-func BroadcastSingle(msg *BroadcastData) {
-  if c := getUserState(msg.userID); c != nil {
-    if strings.EqualFold(c.ServerAddress, GWS.serverAddress) {
+  packet := PackLocalPacket(&PacketHeader{MsgID: msgID}, b, client)
 
-      broadcastLocalServer(msg)
+  if c := getUserState(userID); c != nil {
+    if strings.EqualFold(c.ServerAddress, GWS.ServerAddress) {
+      broadcastLocalServer(&BroadcastData{
+        roomID: roomID,
+        userID: userID,
+        data:   packet,
+      })
+      return nil, nil
     } else {
-
-      broadcastOtherServer(msg)
+      return broadcastOtherServer(ctx, userID, roomID, client, packet)
     }
-  }
-}
-
-func BroadcastByAddress(address string, msg *BroadcastData) {
-  if strings.EqualFold(address, GWS.serverAddress) {
-    broadcastLocalServer(msg)
   } else {
-    broadcastOtherServer(msg)
+    return nil, nil
   }
 }
 
@@ -199,34 +187,17 @@ func broadcastLocalServer(msg *BroadcastData) {
   GWS.broadcast <- msg
 }
 
-func broadcastOtherServer(msg *BroadcastData) {
-
-  GWSService.Request(context.Background(), &ws_proto.RpcReq{
-    UserId: msg.userID,
-    RoomId: msg.roomID,
-    Packet: msg.data,
-    Seq:    msg.seq,
-  }, client.WithAddress(msg.address))
+func broadcastOtherServer(ctx context.Context, userID, roomID string, c *Client, packet []byte) (*ws_proto.RpcRsp, error) {
+  return ws_proto.NewWsRpcService(_WS_SERVER_NAME, gWsRpc.Client).Request(
+    ctx, &ws_proto.RpcReq{
+      UserId: userID,
+      RoomId: roomID,
+      Packet: packet,
+    }, client.WithAddress(c.ServerAddress))
 }
 
 func (c *Client) RemoteIP() string {
   return c.conn.RemoteAddr().String()
-}
-
-func (c *Client) GetAppID() string {
-  return c.appID
-}
-
-func (c *Client) GetUserID() string {
-  return c.userID
-}
-
-func (c *Client) GetRoomID() string {
-  return c.roomID
-}
-
-func (c *Client) getConn() *websocket.Conn {
-  return c.conn
 }
 
 func (c *Client) getState() int32 {
@@ -245,12 +216,12 @@ const _REDIS_KEY_USER_STATE = "ws:user:state:"
 
 func (c *Client) userOnline() {
   c.setState(_IS_ONLINE_STATE)
-  helper.GRedisRing.Set(_REDIS_KEY_USER_STATE+c.userID, helper.Marshal2Bytes(c), time.Hour*24)
+  helper.GRedisRing.Set(_REDIS_KEY_USER_STATE+c.UserID, helper.Marshal2Bytes(c), time.Hour*24)
 }
 
 func (c *Client) userOffline() {
   c.setState(_IS_OFFLINE_STATE)
-  helper.GRedisRing.Del(_REDIS_KEY_USER_STATE + c.userID)
+  helper.GRedisRing.Del(_REDIS_KEY_USER_STATE + c.UserID)
 }
 
 func getUserState(userID string) *Client {

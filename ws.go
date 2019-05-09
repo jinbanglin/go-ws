@@ -14,49 +14,28 @@ import (
 )
 
 type WS struct {
-  Clients       *sync.Map
-  lock          *sync.Mutex
-  register      chan *Client
-  unregister    chan *Client
-  broadcast     chan *BroadcastData
-  clock         *clock.Clock
-  serverName    string
-  serverID      string
-  serverAddress string
-}
-
-func (w *WS) GetServerName() string {
-  return w.serverName
-}
-
-func (w *WS) GetServerID() string {
-  return w.serverID
-}
-
-func (w *WS) getServerNameLen() int {
-  return len(w.serverName)
-}
-
-func (w *WS) getServerIDLen() int {
-  return len(w.serverID)
-}
-
-func (w *WS) getServerAddressLen() int {
-  return len(w.serverAddress)
-}
-
-func (w *WS) getServerAddress() string {
-  return w.serverAddress
+  Clients          *sync.Map
+  lock             *sync.Mutex
+  register         chan *Client
+  unregister       chan *Client
+  broadcast        chan *BroadcastData
+  clock            *clock.Clock
+  ServerName       string
+  ServerID         string
+  ServerAddress    string
+  ServerNameLen    int
+  ServerIDLen      int
+  ServerAddressLen int
 }
 
 var GWS *WS
 
 func SetupWS() {
 
-  initRpcClient()
-
   socketService := GWS.setupWSRpcServer()
   socketService.Init()
+  gWsRpc = &WsRpc{Client: socketService.Client()}
+  ws_proto.RegisterWsRpcHandler(socketService.Server(), gWsRpc)
   go func() {
     if err := socketService.Run(); err != nil {
       log.Error(err)
@@ -71,18 +50,22 @@ func SetupWS() {
       unregister:    make(chan *Client),
       broadcast:     make(chan *BroadcastData, 10240),
       clock:         clock.NewClock(),
-      serverName:    socketService.Server().Options().Name,
-      serverID:      socketService.Server().Options().Id,
-      serverAddress: helper.GetLocalIP() + ":" + getPort(socketService.Server().Options().Address),
+      ServerName:    socketService.Server().Options().Name,
+      ServerID:      socketService.Server().Options().Id,
+      ServerAddress: helper.GetLocalIP() + ":" + getPort(socketService.Server().Options().Address),
     }
+
+    GWS.ServerNameLen = len(GWS.ServerName)
+    GWS.ServerIDLen = len(GWS.ServerID)
+    GWS.ServerAddressLen = len(GWS.ServerAddress)
     RegisterEndpoint(HeartbeatMsgID, &ws_proto.PingReq{}, Heartbeat)
 
     go GWS.Run()
   }
   log.Debugf("socket server start at: name=%s id=%s address=%s",
-    GWS.serverName,
-    GWS.serverID,
-    GWS.serverAddress)
+    GWS.ServerName,
+    GWS.ServerID,
+    GWS.ServerAddress)
 }
 
 func getPort(address string) string {
@@ -90,11 +73,9 @@ func getPort(address string) string {
 }
 
 type BroadcastData struct {
-  roomID  string
-  userID  string
-  address string
-  seq     string
-  data    []byte
+  roomID string
+  userID string
+  data   []byte
 }
 
 func SetBroadcastData(roomID, userID string, b []byte) *BroadcastData {
@@ -126,14 +107,13 @@ func Handshake(userId string, w http.ResponseWriter, r *http.Request) {
   }
 
   client := &Client{
-    userID:        userId,
-    conn:          conn,
-    send:          make(chan []byte),
-    ctx:           context.Background(),
-    ServerID:      GWS.serverID,
-    ServerName:    GWS.serverName,
-    ServerAddress: GWS.serverAddress,
+    WS:     GWS,
+    UserID: userId,
+    conn:   conn,
+    send:   make(chan []byte),
+    ctx:    context.Background(),
   }
+
   GWS.register <- client
   go client.readLoop()
   go client.writeLoop()
@@ -147,27 +127,27 @@ func (w *WS) Run() {
     select {
     case client := <-w.register:
 
-      w.Clients.Store(client.userID, client)
+      w.Clients.Store(client.UserID, client)
 
       client.userOnline()
 
     case client := <-w.unregister:
 
-      log.Debugf("OFFLINE |user_id=%s", client.userID)
+      log.Debugf("OFFLINE |user_id=%s", client.UserID)
 
       client.userOffline()
-      if _, ok := w.Clients.Load(client.userID); ok {
+      if _, ok := w.Clients.Load(client.UserID); ok {
         close(client.send)
-        w.Clients.Delete(client.userID)
+        w.Clients.Delete(client.UserID)
       }
 
     case packet := <-w.broadcast:
 
-      //if !strings.EqualFold(packet.roomID, "") {
+      //if !strings.EqualFold(packet.RoomID, "") {
       //  w.Clients.Range(func(key, value interface{}) bool {
       //    client := value.(*Client)
-      //    if client.roomID == packet.roomID &&client.getState()==_IS_ONLINE_STATE{
-      //      if cnn, ok := w.Clients.Load(client.userID); ok {
+      //    if client.RoomID == packet.RoomID &&client.getState()==_IS_ONLINE_STATE{
+      //      if cnn, ok := w.Clients.Load(client.UserID); ok {
       //        cnn.(*Client).send <- packet.data
       //      }
       //    }

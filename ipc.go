@@ -10,25 +10,19 @@ import (
 
 const _WS_SERVER_NAME = "go.micro.srv.ws"
 
+var gWsRpc *WsRpc
+
 type WsRpc struct {
   Client client.Client
 }
 
 func (w *WsRpc) Request(ctx context.Context, req *ws_proto.RpcReq, rsp *ws_proto.RpcRsp) error {
-
   broadcastLocalServer(&BroadcastData{
     roomID: req.RoomId,
     userID: req.UserId,
     data:   req.Packet,
   })
   return nil
-}
-
-var GWSService ws_proto.WsRpcService
-
-func initRpcClient() {
-
-  GWSService = ws_proto.NewWsRpcService(_WS_SERVER_NAME, client.NewClient(opts.WClientOptions()...))
 }
 
 func (w *WS) setupWSRpcServer() micro.Service {
