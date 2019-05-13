@@ -1,3 +1,3 @@
 # go-ws
-golang micro websocket
-![avatar](https://github.com/jinbanglin/go-ws/websocket.png)
+golang micro websocket  
+![](https://github.com/jinbanglin/go-ws/websocket.png)
