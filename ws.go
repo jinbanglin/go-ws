@@ -15,7 +15,7 @@ import (
 
 type WS struct {
   lock             *sync.WaitGroup
-  Clients          *sync.Map
+  clients          *sync.Map
   register         chan *Client
   unregister       chan *Client
   broadcast        chan *BroadcastData
@@ -33,7 +33,7 @@ var GWS *WS
 func SetupWS() {
   GWS = &WS{
     lock:       new(sync.WaitGroup),
-    Clients:    new(sync.Map),
+    clients:    new(sync.Map),
     register:   make(chan *Client),
     unregister: make(chan *Client),
     broadcast:  make(chan *BroadcastData, 10240),
@@ -136,7 +136,7 @@ func (w *WS) Run() {
     select {
     case client := <-w.register:
 
-      w.Clients.Store(client.UserID, client)
+      w.clients.Store(client.UserID, client)
 
       client.userOnline()
 
@@ -145,25 +145,25 @@ func (w *WS) Run() {
       log.Debugf("OFFLINE |user_id=%s", client.UserID)
 
       client.userOffline()
-      if _, ok := w.Clients.Load(client.UserID); ok {
+      if _, ok := w.clients.Load(client.UserID); ok {
         close(client.send)
-        w.Clients.Delete(client.UserID)
+        w.clients.Delete(client.UserID)
       }
 
     case packet := <-w.broadcast:
 
       //if !strings.EqualFold(packet.RoomID, "") {
-      //  w.Clients.Range(func(key, value interface{}) bool {
+      //  w.clients.Range(func(key, value interface{}) bool {
       //    client := value.(*Client)
       //    if client.RoomID == packet.RoomID &&client.getState()==_IS_ONLINE_STATE{
-      //      if cnn, ok := w.Clients.Load(client.UserID); ok {
+      //      if cnn, ok := w.clients.Load(client.UserID); ok {
       //        cnn.(*Client).send <- packet.data
       //      }
       //    }
       //    return true
       //  })
       //} else {
-      if cnn, ok := w.Clients.Load(packet.userID);
+      if cnn, ok := w.clients.Load(packet.userID);
         ok && cnn.(*Client).getState() == _IS_ONLINE_STATE {
         cnn.(*Client).send <- packet.data
       }

@@ -93,11 +93,11 @@ func (d *Dispatch) Invoking(
   log.Debugf2(
     ctx,
     "FROM"+
-      " |user_id=%s"+
+      " |client=%s"+
       " |data=%v"+
       " |packet_header=%v"+
       " |next_seq=%s",
-    client.UserID,
+    helper.Marshal2String(client),
     helper.Marshal2String(req),
     helper.Marshal2String(header),
     client.getLogTraceID(),
@@ -120,11 +120,11 @@ func (d *Dispatch) Invoking(
   log.Debugf2(
     ctx,
     "TO"+
-      " |user_id=%s"+
+      " |client=%s"+
       " |data=%v"+
       " |packet_header=%v"+
       " |next_seq=%s",
-    client.UserID,
+    helper.Marshal2String(client),
     helper.Marshal2String(rsp),
     helper.Marshal2String(header),
     header.Seq,
