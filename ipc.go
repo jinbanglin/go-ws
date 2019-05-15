@@ -1,22 +1,22 @@
-package go_ws
+package ws
 
 import (
   "github.com/jinbanglin/go-micro/client"
-  "github.com/jinbanglin/go-ws/ws_proto"
   "context"
   "github.com/jinbanglin/micro/opts"
   "github.com/jinbanglin/go-micro"
+  "github.com/jinbanglin/go-ws/proto"
 )
 
 const _WS_SERVER_NAME = "go.micro.srv.ws"
 
-var gWsRpc *WsRpc
+var GWsRpc *WsRpc
 
 type WsRpc struct {
   Client client.Client
 }
 
-func (w *WsRpc) Request(ctx context.Context, req *ws_proto.RpcReq, rsp *ws_proto.RpcRsp) error {
+func (w *WsRpc) Request(ctx context.Context, req *wsp.RpcReq, rsp *wsp.RpcRsp) error {
   broadcastLocalServer(&BroadcastData{
     roomID: req.RoomId,
     userID: req.UserId,

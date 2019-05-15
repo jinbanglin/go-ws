@@ -17,28 +17,28 @@ import (
   "github.com/jinbanglin/go-web"
   "github.com/jinbanglin/helper"
   "github.com/jinbanglin/micro/opts"
-  "github.com/jinbanglin/go-ws"
-  "github.com/jinbanglin/go-ws/ws_proto"
   "github.com/jinbanglin/go-ws/_examples/api.ws/glove"
+  "github.com/jinbanglin/go-ws"
+  "github.com/jinbanglin/go-ws/proto"
 )
 
 var _WEB_WS_API_NAME = "go.micro.web.ws"
 
 func main() {
   defer opts.Recover()
-  helper.Chaos("api.ws.toml", log.SetupMossLog, helper.MgoChaos, helper.RedisChaos, go_ws.WsChaos)
+  helper.Chaos("api.ws.toml", log.SetupMossLog, helper.MgoChaos, helper.RedisChaos, ws.WsChaos)
   service := web.NewService(opts.WServerWithOptions(_WEB_WS_API_NAME, nil)...)
   if err := service.Init(); err != nil {
     log.Fatal(err)
   }
   app := gin.Default()
 
-  go_ws.SetupWS()
+  ws.SetupWS()
 
   RegisterEndpoint()
 
   app.GET("/handshake/test/:userid", func(context *gin.Context) {
-    go_ws.Handshake(context.Param("userid"), context.Writer, context.Request)
+    ws.Handshake(context.Param("userid"), context.Writer, context.Request)
   })
 
   service.Handle("/", app)
@@ -48,5 +48,5 @@ func main() {
 }
 
 func RegisterEndpoint() {
-  go_ws.RegisterEndpoint(60002, &ws_proto.SendMsgTestReq{}, glove.SendMsg)
+  ws.RegisterEndpoint(60002, &wsp.SendMsgTestReq{}, glove.SendMsg)
 }

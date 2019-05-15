@@ -1,4 +1,4 @@
-package go_ws
+package ws
 
 import (
   "sync"

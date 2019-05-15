@@ -2,7 +2,7 @@
 // source: proto.proto
 
 /*
-Package ws_proto is a generated protocol buffer package.
+Package wsp is a generated protocol buffer package.
 
 It is generated from these files:
 	proto.proto
@@ -15,7 +15,7 @@ It has these top-level messages:
 	SendMsgTestReq
 	SendMsgTestRsp
 */
-package ws_proto
+package wsp
 
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
@@ -60,7 +60,7 @@ func NewWsRpcService(name string, c client.Client) WsRpcService {
 		c = client.NewClient()
 	}
 	if len(name) == 0 {
-		name = "ws_proto"
+		name = "wsp"
 	}
 	return &wsRpcService{
 		c:    c,

@@ -1,4 +1,4 @@
-package go_ws
+package ws
 
 import (
   "net/http"
@@ -7,10 +7,10 @@ import (
   "github.com/jinbanglin/log"
   "github.com/gorilla/websocket"
   "context"
-  "github.com/jinbanglin/go-ws/ws_proto"
   "strings"
   "github.com/jinbanglin/go-micro"
   "github.com/jinbanglin/helper"
+  "github.com/jinbanglin/go-ws/proto"
 )
 
 type WS struct {
@@ -54,7 +54,7 @@ func SetupWS() {
       GWS.ServerNameLen = len(GWS.ServerName)
       GWS.ServerIDLen = len(GWS.ServerID)
       GWS.ServerAddressLen = len(GWS.ServerAddress)
-      RegisterEndpoint(HeartbeatMsgID, &ws_proto.PingReq{}, Heartbeat)
+      RegisterEndpoint(HeartbeatMsgID, &wsp.PingReq{}, Heartbeat)
 
       go GWS.Run()
       return nil
@@ -70,8 +70,8 @@ func SetupWS() {
   GWS.lock.Wait()
 
   socketService.Init()
-  gWsRpc = &WsRpc{Client: socketService.Client()}
-  ws_proto.RegisterWsRpcHandler(socketService.Server(), gWsRpc)
+  GWsRpc = &WsRpc{Client: socketService.Client()}
+  wsp.RegisterWsRpcHandler(socketService.Server(), GWsRpc)
 
   log.Debugf("socket server start at: name=%s id=%s address=%s",
     GWS.ServerName,

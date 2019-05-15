@@ -1,4 +1,4 @@
-package go_ws
+package ws
 
 import (
   "reflect"
@@ -9,8 +9,8 @@ import (
   "fmt"
   "github.com/jinbanglin/log"
   "github.com/jinbanglin/helper"
-  "github.com/jinbanglin/go-ws/ws_proto"
   "github.com/jinbanglin/micro/message"
+  "github.com/jinbanglin/go-ws/proto"
 )
 
 type MessageIDType = uint16
@@ -135,7 +135,7 @@ func (d *Dispatch) Invoking(
 const HeartbeatMsgID MessageIDType = 10000
 
 func Heartbeat(ctx context.Context, client *Client, req proto.Message) (rsp proto.Message, err error) {
-  rsp = &ws_proto.PongRsp{
+  rsp = &wsp.PongRsp{
     Appid:         client.AppID,
     UserId:        client.UserID,
     RoomId:        client.RoomID,

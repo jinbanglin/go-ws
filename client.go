@@ -1,4 +1,4 @@
-package go_ws
+package ws
 
 import (
   "github.com/gorilla/websocket"
@@ -10,12 +10,12 @@ import (
   "github.com/spf13/viper"
   "github.com/google/uuid"
   "github.com/jinbanglin/go-micro/metadata"
-  "github.com/jinbanglin/go-ws/ws_proto"
   "github.com/jinbanglin/helper"
   "encoding/json"
   "strings"
   "github.com/jinbanglin/go-micro/client"
   "github.com/gogo/protobuf/proto"
+  "github.com/jinbanglin/go-ws/proto"
 )
 
 type state = int32
@@ -159,7 +159,7 @@ func (c *Client) writeLoop() {
   }
 }
 
-func BroadcastToOne(ctx context.Context, msgID uint16, userID, roomID string, client *Client, payload proto.Message) (*ws_proto.RpcRsp, error) {
+func BroadcastToOne(ctx context.Context, msgID uint16, userID, roomID string, client *Client, payload proto.Message) (*wsp.RpcRsp, error) {
   b, err := proto.Marshal(payload)
   if err != nil {
     return nil, nil
@@ -187,9 +187,9 @@ func broadcastLocalServer(msg *BroadcastData) {
   GWS.broadcast <- msg
 }
 
-func broadcastOtherServer(ctx context.Context, userID, roomID string, c *Client, packet []byte) (*ws_proto.RpcRsp, error) {
-  return ws_proto.NewWsRpcService(_WS_SERVER_NAME, gWsRpc.Client).Request(
-    ctx, &ws_proto.RpcReq{
+func broadcastOtherServer(ctx context.Context, userID, roomID string, c *Client, packet []byte) (*wsp.RpcRsp, error) {
+  return wsp.NewWsRpcService(_WS_SERVER_NAME, GWsRpc.Client).Request(
+    ctx, &wsp.RpcReq{
       UserId: userID,
       RoomId: roomID,
       Packet: packet,

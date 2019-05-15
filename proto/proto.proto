@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package ws_proto;
+package wsp;
 
 import "github.com/jinbanglin/micro/message/message.proto";
 
